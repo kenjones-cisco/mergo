@@ -67,8 +67,20 @@ func deepMerge(dst, src reflect.Value, visited map[uintptr]*visit, depth int, ov
 					}
 				}
 			}
+
+			// Drops existing elements within the Map; otherwise it results in one Map
+			// completely reseting the entire map vs. overwriting individual elements
+			// that differ. https://github.com/imdario/mergo/pull/19
+			if dstElement.IsValid() && reflect.TypeOf(srcElement.Interface()).Kind() == reflect.Map {
+				continue
+			}
+
 			if !isEmptyValue(srcElement) && (overwrite || (!dstElement.IsValid() || isEmptyValue(dst))) {
 				if dst.IsNil() {
+					if !dst.CanSet() {
+						// destination not instantiated
+						dst = reflect.New(dst.Type()).Elem()
+					}
 					dst.Set(reflect.MakeMap(dst.Type()))
 				}
 				dst.SetMapIndex(key, srcElement)
